@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UNDGLD® · Planeación de Capacidad</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap');
+:root {
+  --bg:#F1F1F1;--card:#FFFFFF;--card2:#F7F7F7;--card3:#EDEDED;
+  --text:#212121;--text2:#424242;--muted:#757575;--border:#D9D9D9;--border2:#E5E5E5;
+  --verde:#16A34A;--amarillo:#D97706;--rojo:#DC2626;--azul:#2563EB;--purple:#7C3AED;
+  --verde-light:#DCFCE7;--amarillo-light:#FEF3C7;--rojo-light:#FEE2E2;--azul-light:#DBEAFE;
+  --verde-text:#166534;--amarillo-text:#92400E;--rojo-text:#991B1B;--azul-text:#1E40AF;
+  --font:'Roboto',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;}
+
+/* === LOGIN === */
+#loginScreen{position:fixed;inset:0;background:#212121;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+#loginScreen.hidden{display:none;}
+.login-box{text-align:center;width:320px;}
+.login-logo{font-size:28px;font-weight:900;letter-spacing:6px;color:#F1F1F1;margin-bottom:6px;}
+.login-sub{font-size:10px;color:#737373;letter-spacing:2px;text-transform:uppercase;margin-bottom:40px;}
+.login-input{width:100%;background:#333;border:1px solid #404040;color:#F1F1F1;padding:14px 16px;font-size:13px;
+  font-family:var(--font);letter-spacing:1px;text-align:center;margin-bottom:12px;outline:none;transition:border .2s;}
+.login-input:focus{border-color:#9E9E9E;}
+.login-input::placeholder{color:#666;letter-spacing:1px;}
+.login-btn{width:100%;background:#F1F1F1;color:#212121;border:none;padding:14px;font-size:11px;font-weight:700;
+  letter-spacing:2px;text-transform:uppercase;cursor:pointer;font-family:var(--font);transition:all .2s;}
+.login-btn:hover{background:#FFF;}
+.login-error{color:#F87171;font-size:11px;margin-top:12px;min-height:16px;letter-spacing:.3px;}
+
+/* === HEADER === */
+.header{background:#212121;padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.header-brand{display:flex;align-items:center;gap:24px;}
+.header-logo{font-size:13px;font-weight:700;letter-spacing:3px;color:#F1F1F1;}
+.header-logo sup{font-size:7px;vertical-align:super;}
+.header-nav{font-size:9px;color:#737373;letter-spacing:.5px;}
+.header-right{display:flex;align-items:center;gap:16px;}
+.header-info{font-size:9px;color:#9E9E9E;letter-spacing:.3px;}
+.header-badge{color:#D9D9D9;font-size:10px;font-weight:500;letter-spacing:.5px;}
+.header-live{display:flex;align-items:center;gap:6px;font-size:9px;color:#4ADE80;letter-spacing:.5px;}
+.header-live::before{content:'';width:6px;height:6px;border-radius:50%;background:#4ADE80;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+/* === TOOLBAR === */
+.toolbar{background:var(--card);border-bottom:1px solid var(--border);padding:10px 32px;display:flex;align-items:center;justify-content:space-between;}
+.toolbar-left{font-size:10px;color:var(--muted);letter-spacing:.3px;}
+.toolbar-btn{background:#212121;color:#F1F1F1;border:none;padding:8px 18px;font-size:10px;font-weight:700;
+  letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;font-family:var(--font);transition:all .2s;}
+.toolbar-btn:hover{background:#333;}
+.toolbar-btn:disabled{opacity:.4;cursor:not-allowed;}
+.toolbar-status{font-size:10px;color:var(--verde);font-weight:500;}
+
+/* === TABS === */
+.nav-tabs{display:flex;gap:0;padding:0 32px;background:var(--card);border-bottom:1px solid var(--border);overflow-x:auto;}
+.tab{padding:14px 24px;cursor:pointer;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--muted);border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;}
+.tab.active{color:var(--text);border-bottom-color:#212121;}
+.tab:hover:not(.active){color:var(--text2);}
+.content{padding:24px 32px;display:none;}
+.content.active{display:block;}
+
+/* === KPIs === */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:24px;}
+.kpi{background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:18px 20px;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.kpi.verde::before{background:var(--verde);}
+.kpi.rojo::before{background:var(--rojo);}
+.kpi.amarillo::before{background:var(--amarillo);}
+.kpi.azul::before{background:var(--azul);}
+.kpi.neutral::before{background:#9E9E9E;}
+.kpi .label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;font-weight:500;}
+.kpi .value{font-size:28px;font-weight:700;color:var(--text);letter-spacing:-1px;}
+.kpi .sub2{font-size:10px;color:var(--muted);margin-top:4px;}
+
+/* === CHARTS === */
+.chart-container{background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:20px;margin-bottom:16px;}
+.chart-container h3{font-size:10px;font-weight:700;margin-bottom:14px;color:var(--text2);letter-spacing:1px;text-transform:uppercase;}
+.chart-wrap{position:relative;height:280px;}
+
+/* === SECTION === */
+.section-title{font-size:11px;font-weight:700;margin-bottom:18px;color:var(--text);letter-spacing:2px;text-transform:uppercase;
+  padding-bottom:8px;border-bottom:2px solid #212121;display:inline-block;}
+
+/* === PROVIDER CARDS === */
+.prov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:14px;}
+.prov-card{background:var(--card);border:1px solid var(--border2);border-radius:6px;overflow:hidden;transition:all .15s;}
+.prov-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.prov-card.estado-rojo{border-left:3px solid var(--rojo);}
+.prov-card.estado-amarillo{border-left:3px solid var(--amarillo);}
+.prov-card.estado-verde{border-left:3px solid var(--verde);}
+.prov-header{padding:14px 18px 10px;display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid var(--border2);}
+.prov-name{font-size:14px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text);}
+.prov-stats{font-size:10px;color:var(--muted);margin-top:2px;}
+.semaforo{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.semaforo.verde{background:var(--verde);}
+.semaforo.amarillo{background:var(--amarillo);}
+.semaforo.rojo{background:var(--rojo);}
+.prov-body{padding:14px 18px;}
+
+.metric-row{display:flex;gap:6px;margin-bottom:14px;}
+.metric{text-align:center;flex:1;background:var(--card2);border-radius:4px;padding:10px 4px;border:1px solid var(--border2);}
+.metric .m-val{font-size:15px;font-weight:700;margin-bottom:2px;color:var(--text);}
+.metric .m-lab{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:500;}
+
+.cap-split-title{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;font-weight:500;
+  display:flex;align-items:center;gap:10px;}
+.cap-split-title::after{content:'';flex:1;height:1px;background:var(--border);}
+.cap-process{background:var(--card2);border-radius:4px;padding:10px 12px;margin-bottom:8px;border:1px solid var(--border2);}
+.cap-process.copado{border-color:rgba(220,38,38,.3);background:#FEF2F2;}
+.cap-process.medio{border-color:rgba(217,119,6,.25);background:#FFFBEB;}
+.cap-process.libre{border-color:rgba(22,163,74,.2);background:#F0FDF4;}
+.cap-proc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.cap-proc-name{font-size:10px;font-weight:600;color:var(--text2);}
+.cap-proc-pct{font-size:14px;font-weight:700;}
+.cap-bar-track{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:6px;}
+.cap-bar-fill{height:100%;border-radius:3px;transition:width .5s ease;}
+.cap-proc-details{display:flex;flex-wrap:wrap;gap:10px;font-size:9px;color:var(--muted);}
+.cap-proc-details .hl{color:var(--text2);font-weight:500;}
+.cap-free-date{display:flex;align-items:center;gap:8px;font-size:10px;padding:5px 8px;margin-top:6px;background:var(--card);border-radius:3px;border:1px solid var(--border2);}
+.cap-free-date .dl{color:var(--muted);font-size:9px;}
+.cap-free-date .dv{font-weight:600;font-size:10px;color:var(--text);}
+
+.stage-bar{margin-bottom:12px;}
+.stage-label{font-size:9px;color:var(--muted);margin-bottom:5px;display:flex;justify-content:space-between;letter-spacing:.5px;text-transform:uppercase;font-weight:500;}
+.bar-track{height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:flex;}
+.bar-seg{height:100%;}
+.bar-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;}
+.bar-legend-item{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--muted);}
+.dot{width:6px;height:6px;border-radius:2px;flex-shrink:0;}
+
+.alert-box{margin-top:10px;padding:10px 12px;border-radius:4px;font-size:10px;font-weight:500;}
+.alert-box.verde{background:var(--verde-light);color:var(--verde-text);border:1px solid rgba(22,163,74,.2);}
+.alert-box.amarillo{background:var(--amarillo-light);color:var(--amarillo-text);border:1px solid rgba(217,119,6,.2);}
+.alert-box.rojo{background:var(--rojo-light);color:var(--rojo-text);border:1px solid rgba(220,38,38,.2);}
+
+/* === BOTTLENECK === */
+.bottle-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
+.bottle-card{background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:16px;}
+.bottle-card h3{font-size:10px;font-weight:700;margin-bottom:12px;color:var(--text2);letter-spacing:1px;text-transform:uppercase;}
+.rank-item{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2);}
+.rank-item:last-child{border-bottom:none;}
+.rank-num{width:22px;height:22px;border-radius:4px;background:var(--card3);font-size:10px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text2);}
+.rank-num.top{background:#212121;color:#F1F1F1;}
+.rank-info{flex:1;}
+.rank-name{font-size:11px;font-weight:600;color:var(--text);}
+.rank-detail{font-size:9px;color:var(--muted);margin-top:1px;}
+.rank-badge{padding:3px 8px;border-radius:3px;font-size:10px;font-weight:600;}
+.rb-rojo{background:var(--rojo-light);color:var(--rojo-text);}
+.rb-verde{background:var(--verde-light);color:var(--verde-text);}
+.rb-amarillo{background:var(--amarillo-light);color:var(--amarillo-text);}
+
+/* === TABLE === */
+.plan-table{width:100%;border-collapse:collapse;font-size:11px;}
+.plan-table th{background:#212121;color:#D9D9D9;text-transform:uppercase;font-size:9px;letter-spacing:1px;
+  padding:12px 12px;text-align:left;font-weight:500;}
+.plan-table td{padding:10px 12px;border-bottom:1px solid var(--border2);vertical-align:middle;color:var(--text);}
+.plan-table tr:hover td{background:var(--card2);}
+.pill{display:inline-block;padding:3px 10px;border-radius:3px;font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
+.pill-verde{background:var(--verde-light);color:var(--verde-text);}
+.pill-rojo{background:var(--rojo-light);color:var(--rojo-text);}
+.pill-amarillo{background:var(--amarillo-light);color:var(--amarillo-text);}
+.two-col{display:flex;flex-direction:column;gap:3px;}
+.two-col .row{display:flex;align-items:center;gap:6px;font-size:10px;}
+.two-col .lbl{width:40px;color:var(--muted);font-size:9px;flex-shrink:0;letter-spacing:.3px;text-transform:uppercase;font-weight:500;}
+.two-col .val{font-size:10px;font-weight:600;}
+
+#recsGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+.loading{text-align:center;padding:60px;color:var(--muted);font-size:12px;letter-spacing:1px;}
+.loading::before{content:'';display:block;width:32px;height:32px;border:3px solid var(--border);border-top-color:#212121;
+  border-radius:50%;margin:0 auto 16px;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:900px){
+  .bottle-grid,.prov-grid,#recsGrid{grid-template-columns:1fr;}
+  .content{padding:16px;}
+  .header,.toolbar,.nav-tabs{padding-left:16px;padding-right:16px;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">UNDERGOLD</div>
+    <div class="login-sub">Production Dashboard</div>
+    <input type="password" class="login-input" id="pwdInput" placeholder="Contraseña" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">Ingresar</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp" style="display:none">
+<div class="header">
+  <div class="header-brand">
+    <div class="header-logo">UNDGLD<sup>®</sup></div>
+    <div class="header-nav">Streetwear Design Studio</div>
+  </div>
+  <div class="header-right">
+    <div class="header-live" id="liveStatus">Conectado a Google Sheets</div>
+    <div class="header-info" id="lastUpdate"></div>
+    <div class="header-badge" id="provCount">—</div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <div class="toolbar-left" id="toolbarInfo">Datos en vivo desde Google Sheets</div>
+  <button class="toolbar-btn" id="refreshBtn" onclick="loadFromSheet()">↻ Actualizar</button>
+</div>
+
+<div class="nav-tabs">
+  <div class="tab active" onclick="showTab('resumen',this)">Resumen</div>
+  <div class="tab" onclick="showTab('proveedores',this)">Proveedores</div>
+  <div class="tab" onclick="showTab('capacidad',this)">Capacidad</div>
+  <div class="tab" onclick="showTab('cuellos',this)">Cuellos de Botella</div>
+  <div class="tab" onclick="showTab('planeacion',this)">Planeación</div>
+  <div class="tab" onclick="showTab('recomendaciones',this)">Recomendaciones</div>
+</div>
+
+<div id="tab-resumen" class="content active">
+  <div class="kpi-row" id="kpiRow"><div class="loading">Cargando datos...</div></div>
+  <div class="chart-container"><h3>Unidades activas por proveedor</h3><div class="chart-wrap"><canvas id="cUnidades"></canvas></div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+    <div class="chart-container"><h3>Pendientes confección</h3><div class="chart-wrap"><canvas id="cConf"></canvas></div></div>
+    <div class="chart-container"><h3>Pendientes terminación</h3><div class="chart-wrap"><canvas id="cTermi"></canvas></div></div>
+  </div>
+</div>
+<div id="tab-proveedores" class="content"><div class="prov-grid" id="provGrid"></div></div>
+<div id="tab-capacidad" class="content">
+  <div class="section-title">Capacidad — Confección & Terminación</div><br>
+  <div class="kpi-row">
+    <div class="kpi rojo"><div class="label">Conf. saturada</div><div class="value" style="font-size:12px;color:var(--rojo)" id="kciConfCop">—</div><div class="sub2">&gt;80% ocupada</div></div>
+    <div class="kpi rojo"><div class="label">Termi. saturada</div><div class="value" style="font-size:12px;color:var(--rojo)" id="kciTermiCop">—</div><div class="sub2">&gt;80% ocupada</div></div>
+    <div class="kpi verde"><div class="label">Conf. disponible</div><div class="value" style="font-size:12px;color:var(--verde)" id="kciConfLib">—</div><div class="sub2">Unds/sem libres</div></div>
+    <div class="kpi verde"><div class="label">Termi. disponible</div><div class="value" style="font-size:12px;color:var(--verde)" id="kciTermiLib">—</div><div class="sub2">Unds/sem libres</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+    <div class="chart-container"><h3>Ocupación confección (%)</h3><div class="chart-wrap"><canvas id="cCapConf"></canvas></div></div>
+    <div class="chart-container"><h3>Ocupación terminación (%)</h3><div class="chart-wrap"><canvas id="cCapTermi"></canvas></div></div>
+  </div>
+  <div class="section-title">Detalle — Fechas de liberación</div><br>
+  <div id="capDetailGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(370px,1fr));gap:14px;"></div>
+</div>
+<div id="tab-cuellos" class="content">
+  <div class="section-title">Cuellos de botella</div><br>
+  <div class="bottle-grid">
+    <div class="bottle-card"><h3>Mayor retraso confección</h3><div id="bConf"></div></div>
+    <div class="bottle-card"><h3>Mayor retraso lavandería</h3><div id="bLav"></div></div>
+    <div class="bottle-card"><h3>Mayor acumulación confección</h3><div id="bConfUnds"></div></div>
+    <div class="bottle-card"><h3>Mayor ciclo total</h3><div id="bCiclo"></div></div>
+  </div>
+  <div class="chart-container"><h3>Distribución por etapa</h3><div class="chart-wrap"><canvas id="cEtapas"></canvas></div></div>
+  <div class="chart-container"><h3>Semanas para liberar</h3><div class="chart-wrap" style="height:320px;"><canvas id="cTimeline"></canvas></div></div>
+</div>
+<div id="tab-planeacion" class="content">
+  <div class="section-title">Plan de montado</div><br>
+  <div class="kpi-row">
+    <div class="kpi rojo"><div class="label">No montar</div><div class="value" style="font-size:12px;color:var(--rojo)" id="pNoM">—</div><div class="sub2">Conf. &gt;80%</div></div>
+    <div class="kpi amarillo"><div class="label">Montar poco</div><div class="value" style="font-size:12px;color:var(--amarillo)" id="pMed">—</div><div class="sub2">Conf. 50–80%</div></div>
+    <div class="kpi verde"><div class="label">Montar libre</div><div class="value" style="font-size:12px;color:var(--verde)" id="pLib">—</div><div class="sub2">Conf. &lt;50%</div></div>
+  </div>
+  <table class="plan-table"><thead><tr><th>Proveedor</th><th>Cap Conf/sem</th><th>Cap Termi/sem</th><th>Pend. Conf.</th><th>Pend. Termi.</th><th>Libre Conf.</th><th>Libre Termi.</th><th>Estado</th></tr></thead><tbody id="planBody"></tbody></table>
+</div>
+<div id="tab-recomendaciones" class="content">
+  <div class="section-title">Recomendaciones</div><br>
+  <div id="recsGrid"></div>
+</div>
+</div>
+
+<script>
+// === CONFIG ===
+// 👇 REEMPLAZA ESTA URL CON LA QUE TE DA GOOGLE AL PUBLICAR LA HOJA "Cronograma"
+// Archivo → Compartir → Publicar en la web → Hoja: Cronograma → Formato: CSV → Publicar
+const SHEET_CSV='https://docs.google.com/spreadsheets/d/e/2PACX-1vQUD2wNmafYCkpdTX7tTeNajtWgYNeQf41-Q1pEA_AqLo5Y2TXDULbeBPt7rPBw-99bWzUP6pmZLac9/pub?gid=933023847&single=true&output=csv';
+const PWD_HASH='goldunder2026';
+const CAP_DEFAULTS={"Rega":{c:2800,t:2600},"Mac Moda":{c:1200,t:1100},"MDK":{c:1800,t:1600},"Munkys":{c:1400,t:1300},"PPU":{c:1000,t:900},"Creamos":{c:1200,t:1000},"Legmoda":{c:800,t:700},"Confecab":{c:600,t:500},"Monte Blanco":{c:400,t:350},"Moxy":{c:700,t:600},"CII Blue":{c:500,t:450},"Cap Depot":{c:300,t:280},"Confaltex":{c:600,t:500},"Perla Negra":{c:300,t:250}};
+const STAGE_COLORS={"En confección":"#2563EB","En lavandería":"#7C3AED","En estampación":"#D97706","En terminación":"#16A34A"};
+const TODAY=new Date();
+let DATA={},charts={};
+
+// === LOGIN ===
+function doLogin(){
+  const v=document.getElementById('pwdInput').value;
+  if(v===PWD_HASH){document.getElementById('loginScreen').classList.add('hidden');document.getElementById('mainApp').style.display='block';loadFromSheet();}
+  else{document.getElementById('loginError').textContent='Contraseña incorrecta';document.getElementById('pwdInput').value='';}
+}
+
+// === LOAD FROM GOOGLE SHEETS ===
+async function loadFromSheet(){
+  if(!SHEET_CSV||SHEET_CSV==='PEGA_TU_URL_AQUI'){
+    document.getElementById('toolbarInfo').textContent='⚠ Configura la URL del Sheet en el HTML (busca PEGA_TU_URL_AQUI)';
+    document.getElementById('liveStatus').textContent='Sin configurar';
+    document.getElementById('liveStatus').style.color='#D97706';
+    return;
+  }
+  document.getElementById('refreshBtn').disabled=true;
+  document.getElementById('refreshBtn').textContent='Cargando...';
+  document.getElementById('liveStatus').textContent='Conectando...';
+  document.getElementById('liveStatus').style.color='#D97706';
+
+  // Múltiples proxies CORS en cascada — si uno falla, intenta el siguiente
+  const APPS_SCRIPT='https://script.google.com/macros/s/AKfycbxqUPJv9Zz4HGCJcvKMPe0jseNWW4ccYnAPymseBYwarGbEurW422YwdsdJsrymRSda/exec';
+  const urls=[
+    APPS_SCRIPT,
+    'https://api.allorigins.win/raw?url='+encodeURIComponent(SHEET_CSV),
+    'https://corsproxy.io/?'+encodeURIComponent(SHEET_CSV),
+    SHEET_CSV,
+  ];
+
+  let lastErr=null;
+  for(const url of urls){
+    try{
+      const controller=new AbortController();
+      const timeout=setTimeout(()=>controller.abort(),10000); // 10s timeout por intento
+      const r=await fetch(url,{signal:controller.signal});
+      clearTimeout(timeout);
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const txt=await r.text();
+      if(!txt||txt.trim().length<10)throw new Error('Respuesta vacía');
+      const rows=parseCSV(txt);
+      if(rows.length<2)throw new Error('Sin datos en la hoja');
+      const headers=rows[0].map(h=>h.trim());
+      const dataRows=rows.slice(1);
+      processData(headers,dataRows);
+      document.getElementById('lastUpdate').textContent='Actualizado: '+new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+      document.getElementById('toolbarInfo').textContent=dataRows.length+' filas · '+Object.keys(DATA).length+' proveedores · Hoja Cronograma';
+      document.getElementById('liveStatus').textContent='Conectado a Google Sheets';
+      document.getElementById('liveStatus').style.color='#4ADE80';
+      document.getElementById('refreshBtn').disabled=false;
+      document.getElementById('refreshBtn').textContent='↻ Actualizar';
+      return;
+    }catch(err){
+      lastErr=err;
+      // Continúa al siguiente proxy
+    }
+  }
+
+  // Todos fallaron — mostrar diagnóstico claro
+  const msg=lastErr?.name==='AbortError'?'Timeout (sin respuesta)':lastErr?.message||'Error desconocido';
+  document.getElementById('toolbarInfo').textContent='❌ '+msg+' — Verifica que la hoja esté publicada: Archivo → Compartir → Publicar en la web → CSV';
+  document.getElementById('liveStatus').textContent='Error de conexión';
+  document.getElementById('liveStatus').style.color='#DC2626';
+  document.getElementById('refreshBtn').disabled=false;
+  document.getElementById('refreshBtn').textContent='↻ Reintentar';
+}
+
+function parseCSV(txt){
+  const rows=[];let row=[],cell='',inQ=false;
+  for(let i=0;i<txt.length;i++){
+    const c=txt[i],n=txt[i+1];
+    if(inQ){if(c==='"'&&n==='"'){cell+='"';i++;}else if(c==='"'){inQ=false;}else{cell+=c;}}
+    else{if(c==='"'){inQ=true;}else if(c===','){row.push(cell);cell='';}else if(c==='\n'||(c==='\r'&&n==='\n')){row.push(cell);rows.push(row);row=[];cell='';if(c==='\r')i++;}else if(c==='\r'){row.push(cell);rows.push(row);row=[];cell='';}else{cell+=c;}}
+  }
+  if(cell||row.length)rows.push([...row,cell]);
+  return rows;
+}
+
+function processData(headers,rows){
+  // Busca columna por nombre exacto (después de trim) o parcial
+  const hi=n=>headers.findIndex(h=>{
+    const hl=h.toLowerCase().trim();
+    return typeof n==='function'?n(hl):hl===n.toLowerCase()||hl.includes(n.toLowerCase());
+  });
+  // Mapeo corregido para columnas del Cronograma (algunas tienen espacios iniciales)
+  const cProv=hi('proveedor');
+  const cUnds=hi('unds');
+  const cEstado=hi(h=>h==='estado actual'||h.startsWith('estado'));
+  const cX=hi('c✓');
+  const cAD=hi('l✓');
+  const cAK=hi(h=>h==='e✓');
+  const cAU=hi(h=>h==='t✓');
+  const cRetr=hi('retraso conf');
+  if(cProv<0||cUnds<0)return;
+  // Acepta TRUE/true/1/1.0 como verdadero (Google Sheets exporta checkboxes como TRUE/FALSE)
+  const isT=v=>{if(v===null||v===undefined)return false;const s=String(v).trim().toLowerCase();return s==='true'||s==='1'||s==='1.0';};
+  const isF=v=>!isT(v);
+  const SKIP=['INVENTARIO','Jagi','Jhoker','Luz Mery','Calcetines express',''];
+  const tmp={};
+  rows.forEach(r=>{
+    const prov=(r[cProv]||'').trim();if(!prov||SKIP.includes(prov))return;
+    const unds=parseFloat(String(r[cUnds]||'').replace(/[^0-9.]/g,''))||0;if(unds<=0)return;
+    const estado=(r[cEstado]||'').trim();
+    const x=r[cX],ad=cAD>=0?r[cAD]:null,ak=cAK>=0?r[cAK]:null,au=cAU>=0?r[cAU]:null;
+    if(!tmp[prov])tmp[prov]={total:0,active_cnt:0,active_unds:0,conf_unds:0,conf_orders:0,termi_unds:0,termi_orders:0,estado:{},retrasos:[],cats:{},
+      cap_conf_week:CAP_DEFAULTS[prov]?.c||600,cap_termi_week:CAP_DEFAULTS[prov]?.t||500,retraso_conf:0,retraso_lav:0,ciclo:75,lav:5};
+    const d=tmp[prov];d.total++;
+    if(cRetr>=0){const rv=parseFloat(r[cRetr]);if(!isNaN(rv))d.retrasos.push(rv);}
+    if(estado==='Entregado')return;
+    d.active_cnt++;d.active_unds+=unds;
+    if(estado)d.estado[estado]=(d.estado[estado]||0)+1;
+    if(cX>=0&&isF(x)){d.conf_unds+=unds;d.conf_orders++;}
+    if(cX>=0&&cAD>=0&&cAK>=0&&cAU>=0&&isT(x)&&isT(ad)&&isT(ak)&&isF(au)){d.termi_unds+=unds;d.termi_orders++;}
+  });
+  DATA={};
+  Object.entries(tmp).forEach(([n,d])=>{if(d.total<1)return;
+    d.retraso_conf=d.retrasos.length?Math.round(d.retrasos.reduce((s,v)=>s+v,0)/d.retrasos.length*10)/10:0;
+    DATA[n]=d;});
+  document.getElementById('provCount').textContent=Object.keys(DATA).length+' Proveedores';
+  rebuildAll();
+}
+
+// === HELPERS ===
+function confPct(d){return d.cap_conf_week?Math.min(100,Math.round((d.conf_unds/(d.cap_conf_week*4))*100)):0;}
+function termiPct(d){return d.cap_termi_week?Math.min(100,Math.round((d.termi_unds/(d.cap_termi_week*4))*100)):0;}
+function weeksConf(d){return d.cap_conf_week>0?Math.ceil(d.conf_unds/d.cap_conf_week):0;}
+function weeksTermi(d){return d.cap_termi_week>0?Math.ceil(d.termi_unds/d.cap_termi_week):0;}
+function addWeeks(w){const d=new Date(TODAY);d.setDate(d.getDate()+w*7);return d;}
+function fmt(d){return d.toLocaleDateString('es-CO',{day:'2-digit',month:'short'});}
+function semColor(d){const cp=confPct(d);if(d.retraso_conf>15||cp>80)return'rojo';if(d.retraso_conf>5||cp>50)return'amarillo';return'verde';}
+function pClass(p){return p>80?'copado':p>50?'medio':'libre';}
+function pColor(p){return p>80?'var(--rojo)':p>50?'var(--amarillo)':'var(--verde)';}
+function pHex(p){return p>80?'#DC2626':p>50?'#D97706':'#16A34A';}
+function dc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+// === CHART DEFAULTS ===
+Chart.defaults.color='#757575';Chart.defaults.borderColor='rgba(0,0,0,.06)';Chart.defaults.font.family="'Roboto'";Chart.defaults.font.size=10;
+const baseOpts=(x={})=>({responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9}},grid:{color:'rgba(0,0,0,.05)'}},y:{grid:{color:'rgba(0,0,0,.06)'}}}, ...x});
+
+function buildCharts(){const provs=Object.keys(DATA);if(!provs.length)return;
+dc('cUnidades');charts['cUnidades']=new Chart(document.getElementById('cUnidades'),{type:'bar',data:{labels:provs,datasets:[{data:provs.map(n=>DATA[n].active_unds),backgroundColor:provs.map(n=>DATA[n].active_unds>10000?'#DC2626':DATA[n].active_unds>3000?'#D97706':'#16A34A'),borderRadius:3}]},options:baseOpts()});
+dc('cConf');charts['cConf']=new Chart(document.getElementById('cConf'),{type:'bar',data:{labels:provs,datasets:[{data:provs.map(n=>DATA[n].conf_unds),backgroundColor:'#2563EB',borderRadius:3}]},options:baseOpts()});
+dc('cTermi');charts['cTermi']=new Chart(document.getElementById('cTermi'),{type:'bar',data:{labels:provs,datasets:[{data:provs.map(n=>DATA[n].termi_unds),backgroundColor:'#16A34A',borderRadius:3}]},options:baseOpts()});
+const cp=provs.map(n=>confPct(DATA[n])),tp=provs.map(n=>termiPct(DATA[n]));
+dc('cCapConf');charts['cCapConf']=new Chart(document.getElementById('cCapConf'),{type:'bar',data:{labels:provs,datasets:[{data:cp,backgroundColor:cp.map(pHex),borderRadius:3}]},options:baseOpts({scales:{x:{ticks:{font:{size:9}},grid:{color:'rgba(0,0,0,.05)'}},y:{max:100,ticks:{callback:v=>v+'%'},grid:{color:'rgba(0,0,0,.06)'}}}})});
+dc('cCapTermi');charts['cCapTermi']=new Chart(document.getElementById('cCapTermi'),{type:'bar',data:{labels:provs,datasets:[{data:tp,backgroundColor:tp.map(pHex),borderRadius:3}]},options:baseOpts({scales:{x:{ticks:{font:{size:9}},grid:{color:'rgba(0,0,0,.05)'}},y:{max:100,ticks:{callback:v=>v+'%'},grid:{color:'rgba(0,0,0,.06)'}}}})});
+const et={};Object.values(DATA).forEach(d=>Object.entries(d.estado).forEach(([k,v])=>{et[k]=(et[k]||0)+v;}));
+dc('cEtapas');charts['cEtapas']=new Chart(document.getElementById('cEtapas'),{type:'doughnut',data:{labels:Object.keys(et),datasets:[{data:Object.values(et),backgroundColor:Object.keys(et).map(k=>STAGE_COLORS[k]||'#999'),borderWidth:2,borderColor:'#FFF'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#424242',font:{size:11}}}}}});
+const tl=provs.map(n=>({n,wc:weeksConf(DATA[n]),wt:weeksTermi(DATA[n])})).filter(x=>x.wc>0||x.wt>0).sort((a,b)=>b.wc-a.wc);
+dc('cTimeline');charts['cTimeline']=new Chart(document.getElementById('cTimeline'),{type:'bar',data:{labels:tl.map(t=>t.n),datasets:[{label:'Conf.',data:tl.map(t=>t.wc),backgroundColor:'#2563EB',borderRadius:3,barPercentage:.5},{label:'Termi.',data:tl.map(t=>t.wt),backgroundColor:'#16A34A',borderRadius:3,barPercentage:.5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#424242',font:{size:10}}}},scales:{x:{grid:{color:'rgba(0,0,0,.06)'},title:{display:true,text:'Semanas',color:'#757575'}},y:{ticks:{font:{size:10},color:'#424242'}}}}});}
+
+function buildKPIs(){const vals=Object.values(DATA);if(!vals.length)return;
+const ta=vals.reduce((s,d)=>s+d.active_cnt,0),tu=vals.reduce((s,d)=>s+d.active_unds,0),tc=vals.reduce((s,d)=>s+d.conf_unds,0),tt=vals.reduce((s,d)=>s+d.termi_unds,0);
+const w=Object.entries(DATA).sort((a,b)=>b[1].retraso_conf-a[1].retraso_conf)[0],b=Object.entries(DATA).sort((a,b)=>a[1].retraso_conf-b[1].retraso_conf)[0];
+document.getElementById('kpiRow').innerHTML=`
+<div class="kpi neutral"><div class="label">Órdenes activas</div><div class="value">${ta}</div><div class="sub2">En proceso</div></div>
+<div class="kpi amarillo"><div class="label">Unds en planta</div><div class="value">${tu.toLocaleString()}</div><div class="sub2">Sin entregar</div></div>
+<div class="kpi azul"><div class="label">Pend. confección</div><div class="value">${tc.toLocaleString()}</div><div class="sub2">C✓ = FALSE</div></div>
+<div class="kpi verde"><div class="label">Pend. terminación</div><div class="value">${tt.toLocaleString()}</div><div class="sub2">C✓+L✓+E✓=T, T✓=F</div></div>
+<div class="kpi rojo"><div class="label">Proveedor crítico</div><div class="value" style="font-size:14px;color:var(--rojo)">${w[0]}</div><div class="sub2">${w[1].retraso_conf>0?'+':''}${w[1].retraso_conf}d</div></div>
+<div class="kpi verde"><div class="label">Mejor cumplimiento</div><div class="value" style="font-size:14px;color:var(--verde)">${b[0]}</div><div class="sub2">${b[1].retraso_conf>0?'+':''}${b[1].retraso_conf}d</div></div>`;}
+
+function buildProvCards(){const g=document.getElementById('provGrid');g.innerHTML='';Object.entries(DATA).forEach(([name,d])=>{const sc=semColor(d),cp=confPct(d),tp=termiPct(d),wc=weeksConf(d),wt=weeksTermi(d);const fc=wc>0?fmt(addWeeks(wc)):'Disp.',ft=wt>0?fmt(addWeeks(wt)):'Disp.';const rc=d.retraso_conf>10?'var(--rojo)':d.retraso_conf>0?'var(--amarillo)':'var(--verde)';const stages=Object.entries(d.estado),tot=stages.reduce((s,[,v])=>s+v,0)||1;const segs=stages.map(([s,c])=>`<div class="bar-seg" style="width:${(c/tot*100).toFixed(1)}%;background:${STAGE_COLORS[s]||'#999'}"></div>`).join('');const leg=stages.map(([s,c])=>`<div class="bar-legend-item"><div class="dot" style="background:${STAGE_COLORS[s]||'#999'}"></div>${s}(${c})</div>`).join('');
+g.innerHTML+=`<div class="prov-card estado-${sc}"><div class="prov-header"><div><div class="prov-name">${name}</div><div class="prov-stats">${d.total} OPs · ${d.active_cnt} activas</div></div><div class="semaforo ${sc}"></div></div><div class="prov-body"><div class="metric-row"><div class="metric"><div class="m-val" style="color:var(--amarillo)">${d.active_unds.toLocaleString()}</div><div class="m-lab">Total</div></div><div class="metric"><div class="m-val" style="color:var(--azul)">${d.conf_unds.toLocaleString()}</div><div class="m-lab">Pend Conf</div></div><div class="metric"><div class="m-val" style="color:var(--verde)">${d.termi_unds.toLocaleString()}</div><div class="m-lab">Pend Termi</div></div><div class="metric"><div class="m-val" style="color:${rc}">${d.retraso_conf>0?'+':''}${d.retraso_conf}d</div><div class="m-lab">Ret Conf</div></div></div><div class="cap-split-title">Capacidad</div><div class="cap-process ${pClass(cp)}"><div class="cap-proc-header"><div class="cap-proc-name">Confección</div><div class="cap-proc-pct" style="color:${pColor(cp)}">${cp}%</div></div><div class="cap-bar-track"><div class="cap-bar-fill" style="width:${cp}%;background:${pHex(cp)}"></div></div><div class="cap-proc-details"><span>Cap: <span class="hl">${d.cap_conf_week.toLocaleString()}/sem</span></span><span>Pend: <span class="hl">${d.conf_unds.toLocaleString()}</span></span><span>~${wc} sem</span></div><div class="cap-free-date"><span class="dl">Libre:</span><span class="dv" style="color:${pColor(cp)}">${fc}</span></div></div><div class="cap-process ${pClass(tp)}"><div class="cap-proc-header"><div class="cap-proc-name">Terminación</div><div class="cap-proc-pct" style="color:${pColor(tp)}">${tp}%</div></div><div class="cap-bar-track"><div class="cap-bar-fill" style="width:${tp}%;background:${pHex(tp)}"></div></div><div class="cap-proc-details"><span>Cap: <span class="hl">${d.cap_termi_week.toLocaleString()}/sem</span></span><span>Pend: <span class="hl">${d.termi_unds.toLocaleString()}</span></span><span>~${wt} sem</span></div><div class="cap-free-date"><span class="dl">Libre:</span><span class="dv" style="color:${pColor(tp)}">${ft}</span></div></div>${stages.length>0?`<div class="stage-bar" style="margin-top:10px;"><div class="stage-label"><span>Distribución</span><span>${d.active_cnt} órd</span></div><div class="bar-track">${segs}</div><div class="bar-legend">${leg}</div></div>`:`<div style="font-size:9px;color:var(--muted);text-align:center;padding:12px 0;text-transform:uppercase;letter-spacing:1px">Sin órdenes activas</div>`}<div class="alert-box ${sc}">${sc==='rojo'?'No montar más hasta liberar.':sc==='amarillo'?'Evaluar antes de asignar.':'Puede absorber nuevas OPs.'}</div></div></div>`;});}
+
+function buildCapTab(){let cC=[],tC=[],cL=0,tL=0;Object.entries(DATA).forEach(([n,d])=>{const cp=confPct(d),tp=termiPct(d);if(cp>80)cC.push(n);else cL+=Math.max(0,d.cap_conf_week-(d.conf_unds/4));if(tp>80)tC.push(n);else tL+=Math.max(0,d.cap_termi_week-(d.termi_unds/4));});
+document.getElementById('kciConfCop').textContent=cC.length?cC.join(', '):'Ninguno';document.getElementById('kciTermiCop').textContent=tC.length?tC.join(', '):'Ninguno';document.getElementById('kciConfLib').textContent='~'+Math.round(cL/1000)+'K/sem';document.getElementById('kciTermiLib').textContent='~'+Math.round(tL/1000)+'K/sem';
+const g=document.getElementById('capDetailGrid');g.innerHTML='';Object.entries(DATA).forEach(([name,d])=>{const cp=confPct(d),tp=termiPct(d),wc=weeksConf(d),wt=weeksTermi(d);g.innerHTML+=`<div style="background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:16px;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><div style="font-size:13px;font-weight:700;text-transform:uppercase;color:var(--text)">${name}</div><div class="semaforo ${semColor(d)}"></div></div><div class="cap-process ${pClass(cp)}" style="margin-bottom:8px;"><div class="cap-proc-header"><div class="cap-proc-name">Confección</div><div class="cap-proc-pct" style="color:${pColor(cp)}">${cp}%</div></div><div class="cap-bar-track"><div class="cap-bar-fill" style="width:${cp}%;background:${pHex(cp)}"></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px;">${cell('Cap/sem',d.cap_conf_week.toLocaleString())}${cell('Pendiente',d.conf_unds.toLocaleString())}${cell('Órdenes',d.conf_orders)}${cell('Semanas',wc>0?'~'+wc:'Libre',pHex(cp))}</div></div><div class="cap-process ${pClass(tp)}"><div class="cap-proc-header"><div class="cap-proc-name">Terminación</div><div class="cap-proc-pct" style="color:${pColor(tp)}">${tp}%</div></div><div class="cap-bar-track"><div class="cap-bar-fill" style="width:${tp}%;background:${pHex(tp)}"></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px;">${cell('Cap/sem',d.cap_termi_week.toLocaleString())}${cell('Pendiente',d.termi_unds.toLocaleString())}${cell('Órdenes',d.termi_orders)}${cell('Semanas',wt>0?'~'+wt:'Libre',pHex(tp))}</div></div></div>`;});}
+function cell(l,v,c=''){return `<div style="background:var(--card2);padding:6px 8px;border-radius:3px;border:1px solid var(--border2)"><div style="color:var(--muted);font-size:8px;letter-spacing:.5px;text-transform:uppercase;font-weight:500;margin-bottom:2px">${l}</div><div style="font-weight:600;font-size:11px;color:${c||'var(--text)'}">${v}</div></div>`;}
+
+function buildBottlenecks(){const byC=Object.entries(DATA).sort((a,b)=>b[1].retraso_conf-a[1].retraso_conf),byL=Object.entries(DATA).sort((a,b)=>b[1].retraso_lav-a[1].retraso_lav),byCU=Object.entries(DATA).sort((a,b)=>b[1].conf_unds-a[1].conf_unds),byCC=Object.entries(DATA).sort((a,b)=>b[1].ciclo-a[1].ciclo);
+function rl(items,fn,bT,wT){return items.slice(0,5).map(([n,d],i)=>{const v=fn(d),cls=v>bT?'rb-rojo':v>wT?'rb-amarillo':'rb-verde';return `<div class="rank-item"><div class="rank-num ${i<2?'top':''}">${i+1}</div><div class="rank-info"><div class="rank-name">${n}</div><div class="rank-detail">${d.active_cnt} órd · ${d.conf_unds.toLocaleString()} pend</div></div><div class="rank-badge ${cls}">${v>0?'+':''}${v}d</div></div>`;}).join('');}
+document.getElementById('bConf').innerHTML=rl(byC,d=>d.retraso_conf,10,0);document.getElementById('bLav').innerHTML=rl(byL,d=>d.retraso_lav,10,0);
+document.getElementById('bConfUnds').innerHTML=byCU.slice(0,5).map(([n,d],i)=>`<div class="rank-item"><div class="rank-num ${i<2?'top':''}">${i+1}</div><div class="rank-info"><div class="rank-name">${n}</div><div class="rank-detail">${d.conf_orders} órd</div></div><div class="rank-badge ${d.conf_unds>5000?'rb-rojo':d.conf_unds>2000?'rb-amarillo':'rb-verde'}">${d.conf_unds.toLocaleString()}</div></div>`).join('');
+document.getElementById('bCiclo').innerHTML=byCC.slice(0,5).map(([n,d],i)=>`<div class="rank-item"><div class="rank-num ${i<2?'top':''}">${i+1}</div><div class="rank-info"><div class="rank-name">${n}</div><div class="rank-detail">Ciclo prom.</div></div><div class="rank-badge ${d.ciclo>90?'rb-rojo':d.ciclo>70?'rb-amarillo':'rb-verde'}">${d.ciclo}d</div></div>`).join('');}
+
+function buildPlan(){const body=document.getElementById('planBody');body.innerHTML='';let noM=[],med=[],lib=[];Object.entries(DATA).forEach(([name,d])=>{const sc=semColor(d),cp=confPct(d),tp=termiPct(d),wc=weeksConf(d),wt=weeksTermi(d),fc=wc>0?fmt(addWeeks(wc)):'Ahora',ft=wt>0?fmt(addWeeks(wt)):'Ahora';if(sc==='rojo')noM.push(name);else if(sc==='amarillo')med.push(name);else lib.push(name);const ss=sc==='rojo'?'<span class="pill pill-rojo">Lleno</span>':sc==='amarillo'?'<span class="pill pill-amarillo">Medio</span>':'<span class="pill pill-verde">Disp.</span>';
+body.innerHTML+=`<tr><td style="font-weight:700;text-transform:uppercase;font-size:10px">${name}</td><td style="font-size:10px">${d.cap_conf_week.toLocaleString()}</td><td style="font-size:10px">${d.cap_termi_week.toLocaleString()}</td><td><div class="two-col"><div class="row"><span class="lbl">Unds</span><span class="val" style="color:var(--azul)">${d.conf_unds.toLocaleString()}</span></div><div class="row"><span class="lbl">%Cap</span><span class="val" style="color:${pHex(cp)}">${cp}%</span></div></div></td><td><div class="two-col"><div class="row"><span class="lbl">Unds</span><span class="val" style="color:var(--verde)">${d.termi_unds.toLocaleString()}</span></div><div class="row"><span class="lbl">%Cap</span><span class="val" style="color:${pHex(tp)}">${tp}%</span></div></div></td><td style="font-size:10px;color:${pHex(cp)}">${fc}</td><td style="font-size:10px;color:${pHex(tp)}">${ft}</td><td>${ss}</td></tr>`;});
+document.getElementById('pNoM').textContent=noM.join(', ')||'Ninguno';document.getElementById('pMed').textContent=med.join(', ')||'Ninguno';document.getElementById('pLib').textContent=lib.join(', ')||'Ninguno';}
+
+function buildRecs(){const recs=[];const provs=Object.entries(DATA).sort((a,b)=>b[1].retraso_conf-a[1].retraso_conf);
+provs.forEach(([n,d])=>{if(d.retraso_conf>15)recs.push({t:n+' — Intervención urgente',c:'#DC2626',i:[`+${d.retraso_conf}d retraso confección`,`${d.conf_unds.toLocaleString()} unds pendientes conf`,`${d.termi_unds.toLocaleString()} unds pendientes termi`,'No montar más hasta liberar']});
+else if(d.active_unds>15000)recs.push({t:n+' — Carga alta',c:'#D97706',i:[`${d.active_unds.toLocaleString()} unds en planta`,`Conf: ${d.conf_unds.toLocaleString()} · Termi: ${d.termi_unds.toLocaleString()}`,'Evaluar redistribución de carga']});});
+const libres=Object.entries(DATA).filter(([,d])=>d.active_cnt===0&&d.cap_conf_week>0);
+if(libres.length)recs.push({t:'Proveedores disponibles',c:'#16A34A',i:libres.map(([n,d])=>`${n}: ${d.cap_conf_week.toLocaleString()}/sem libre`)});
+recs.push({t:'KPIs sugeridos',c:'#757575',i:['Alerta amarilla: retraso > 7d','Alerta roja: retraso > 15d','Cuello crítico: > 8K unds pend','Revisión semanal obligatoria']});
+const g=document.getElementById('recsGrid');g.innerHTML='';recs.forEach(r=>{g.innerHTML+=`<div style="background:var(--card);border:1px solid var(--border2);border-left:3px solid ${r.c};border-radius:6px;padding:18px;"><div style="font-size:11px;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text)">${r.t}</div><ul style="list-style:none;display:flex;flex-direction:column;gap:6px;">${r.i.map(i=>`<li style="font-size:10px;color:var(--text2);padding-left:14px;position:relative;line-height:1.5"><span style="position:absolute;left:0;color:${r.c}">→</span>${i}</li>`).join('')}</ul></div>`;});}
+
+function showTab(name,el){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.content').forEach(c=>c.classList.remove('active'));el.classList.add('active');document.getElementById('tab-'+name).classList.add('active');}
+function rebuildAll(){buildKPIs();buildProvCards();buildCapTab();buildBottlenecks();buildPlan();buildRecs();buildCharts();}
+</script>
+</body>
+</html>
